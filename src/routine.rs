@@ -2,6 +2,7 @@ use crate::benchmark::BenchmarkConfig;
 use crate::connection::OutgoingMessage;
 use crate::measurement::Measurement;
 use crate::report::{BenchmarkId, Report, ReportContext};
+use crate::stats::rand_util::new_rng;
 use crate::{ActualSamplingMode, Bencher, Criterion};
 use std::hint::black_box;
 use std::marker::PhantomData;
@@ -244,15 +245,20 @@ where
             elapsed_time: Duration::from_millis(0),
         };
 
-        iters
-            .iter()
-            .map(|iters| {
-                b.iters = *iters;
+        let mut ret = vec![0.0; iters.len()];
+        let mut rng = new_rng();
+        let page_size = page_size::get();
+        assert!(page_size.is_power_of_two());
+        for (ret, &iter) in ret.iter_mut().zip(iters) {
+            b.iters = iter;
+            let stack_padding = rng.rand_u64() as usize & (page_size - 1);
+            alloca::with_alloca(stack_padding, |_mem| {
                 (*f)(&mut b, black_box(parameter));
-                b.assert_iterated();
-                m.to_f64(&b.value)
-            })
-            .collect()
+            });
+            b.assert_iterated();
+            *ret = m.to_f64(&b.value);
+        }
+        ret
     }
 
     fn warm_up(&mut self, m: &M, how_long: Duration, parameter: &T) -> (u64, u64) {

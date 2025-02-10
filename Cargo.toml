@@ -44,6 +44,8 @@ tokio = { version = "1.0", default-features = false, features = [
   "rt",
 ], optional = true }
 async-std = { version = "1.13", optional = true }
+alloca = "0.4.0"
+page_size = "0.6.0"
 
 [dependencies.plotters]
 version          = "^0.3.2"
